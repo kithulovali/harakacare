@@ -17,6 +17,7 @@ from ..tools.facility_matching import FacilityMatchingTool
 from ..tools.prioritization import PrioritizationTool
 from ..tools.notification_dispatch import NotificationDispatchTool
 from ..tools.logging_monitoring import LoggingMonitoringTool
+from ..tools.patient_notification_service import PatientNotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class FacilityAgentOrchestrator:
         self.prioritization_tool = PrioritizationTool()
         self.notification_tool = NotificationDispatchTool()
         self.logging_tool = LoggingMonitoringTool()
+        self.patient_notification_service = PatientNotificationService()
 
     def process_triage_case(self, triage_data: Dict) -> Dict:
         """
@@ -83,7 +85,14 @@ class FacilityAgentOrchestrator:
                     recommendation.get('reason', '')
                 )
                 
-                # Step 7: Handle automatic booking
+                # Step 7: Send initial case update to patient
+                self.patient_notification_service.send_case_update_notification(
+                    routing=routing,
+                    update_message=f"Your case has been received and we are finding the best facility for you. {len(prioritized_candidates)} facilities have been identified. Risk level: {routing.risk_level}.",
+                    facility=recommendation.get('recommended_facility')
+                )
+                
+                # Step 8: Handle automatic booking
                 notifications_sent = []
                 if booking_type == 'automatic' and recommendation.get('recommended_facility'):
                     notification = self._handle_automatic_booking(
@@ -91,7 +100,7 @@ class FacilityAgentOrchestrator:
                     )
                     notifications_sent.append(notification)
                 
-                # Step 8: Notify Follow-up Agent
+                # Step 9: Notify Follow-up Agent
                 self._notify_followup_agent(routing, recommendation)
                 
                 return {
